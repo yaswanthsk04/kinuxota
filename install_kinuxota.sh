@@ -154,87 +154,49 @@ detect_arch() {
     echo $ARCH
 }
 
-# Download binaries
-download_binaries() {
+# Download and install binaries directly
+download_and_install_binaries() {
     local OS=$1
     local VERSION=$2
     local ARCH=$3
     
-    log "Downloading KinuxOTA binaries..."
+    log "Downloading and installing KinuxOTA binaries..."
     
-    # Create temporary directory
-    TEMP_DIR=$(mktemp -d)
-    log "Created temporary directory: $TEMP_DIR"
-    
-    # Create directory structure in temp dir
-    mkdir -p "$TEMP_DIR/bin"
-    
-    # Download kinuxota_client
-    log "Downloading kinuxota_client..."
-    curl -L -o "$TEMP_DIR/bin/kinuxota_client" "https://github.com/yaswanthsk04/kinuxota/raw/main/release/1.0.0/ubuntu/amd64/kinuxota_client"
-    if [ ! -f "$TEMP_DIR/bin/kinuxota_client" ]; then
-        error "Failed to download kinuxota_client"
-    fi
-    
-    # Make the binary executable
-    chmod +x "$TEMP_DIR/bin/kinuxota_client"
-    
-    # Also download kinuxctl
-    log "Downloading kinuxctl..."
-    curl -L -o "$TEMP_DIR/bin/kinuxctl" "https://github.com/yaswanthsk04/kinuxota/raw/main/release/1.0.0/ubuntu/amd64/kinuxctl"
-    if [ -f "$TEMP_DIR/bin/kinuxctl" ]; then
-        log "Successfully downloaded kinuxctl"
-        chmod +x "$TEMP_DIR/bin/kinuxctl"
-    else
-        log "Warning: Failed to download kinuxctl, will continue without it"
-    fi
-    
-    # Also download update-executor.sh
-    log "Downloading update-executor.sh..."
-    curl -L -o "$TEMP_DIR/bin/update-executor.sh" "https://github.com/yaswanthsk04/kinuxota/raw/main/kinuxota/update-executor.sh"
-    if [ -f "$TEMP_DIR/bin/update-executor.sh" ]; then
-        log "Successfully downloaded update-executor.sh"
-        chmod +x "$TEMP_DIR/bin/update-executor.sh"
-    else
-        log "Warning: Failed to download update-executor.sh, will try to use local copy during installation"
-    fi
-    
-    # Return the path to the extracted binaries
-    echo "$TEMP_DIR"
-}
-
-# Install binaries
-install_binaries() {
-    local BINARIES_DIR=$1
+    # Define installation directory
     local INSTALL_DIR="/usr/local/bin"
-    
-    log "Installing binaries to $INSTALL_DIR..."
     
     # Create install directory if it doesn't exist
     mkdir -p "$INSTALL_DIR"
     
-    # Copy binaries from the bin directory
-    cp "$BINARIES_DIR/bin/kinuxota_client" "$INSTALL_DIR/"
+    # Download kinuxota_client directly to installation directory
+    log "Downloading kinuxota_client..."
+    curl -L -o "$INSTALL_DIR/kinuxota_client" "https://github.com/yaswanthsk04/kinuxota/raw/main/release/1.0.0/ubuntu/amd64/kinuxota_client"
+    if [ ! -f "$INSTALL_DIR/kinuxota_client" ]; then
+        error "Failed to download kinuxota_client"
+    fi
     
-    # Copy kinuxctl if it exists
-    if [ -f "$BINARIES_DIR/bin/kinuxctl" ]; then
-        cp "$BINARIES_DIR/bin/kinuxctl" "$INSTALL_DIR/"
+    # Make the binary executable
+    chmod 755 "$INSTALL_DIR/kinuxota_client"
+    log "Installed kinuxota_client"
+    
+    # Download kinuxctl directly to installation directory
+    log "Downloading kinuxctl..."
+    curl -L -o "$INSTALL_DIR/kinuxctl" "https://github.com/yaswanthsk04/kinuxota/raw/main/release/1.0.0/ubuntu/amd64/kinuxctl"
+    if [ -f "$INSTALL_DIR/kinuxctl" ]; then
         chmod 755 "$INSTALL_DIR/kinuxctl"
         log "Installed kinuxctl"
     else
-        log "kinuxctl not found, skipping"
+        log "Warning: Failed to download kinuxctl, will continue without it"
     fi
     
-    # Set permissions
-    chmod 755 "$INSTALL_DIR/kinuxota_client"
-    
-    # Copy update-executor.sh script if it exists in the downloaded package
-    if [ -f "$BINARIES_DIR/bin/update-executor.sh" ]; then
-        cp "$BINARIES_DIR/bin/update-executor.sh" "$INSTALL_DIR/"
+    # Download update-executor.sh directly to installation directory
+    log "Downloading update-executor.sh..."
+    curl -L -o "$INSTALL_DIR/update-executor.sh" "https://github.com/yaswanthsk04/kinuxota/raw/main/kinuxota/update-executor.sh"
+    if [ -f "$INSTALL_DIR/update-executor.sh" ]; then
         chmod 755 "$INSTALL_DIR/update-executor.sh"
         log "Installed update-executor.sh"
     else
-        # Create a copy of the update-executor.sh script from the source directory if available
+        # Try to use local copy if available
         if [ -f "./kinuxota/update-executor.sh" ]; then
             cp "./kinuxota/update-executor.sh" "$INSTALL_DIR/"
             chmod 755 "$INSTALL_DIR/update-executor.sh"
@@ -243,8 +205,6 @@ install_binaries() {
             log "Warning: update-executor.sh not found, updates may not work correctly"
         fi
     fi
-    
-    log "Binaries installed successfully"
 }
 
 # Create configuration directories
@@ -384,20 +344,6 @@ start_service() {
     fi
 }
 
-# Cleanup temporary files
-cleanup() {
-    local TEMP_DIR=$1
-    
-    log "Cleaning up temporary files..."
-    
-    # Remove temporary directory
-    if [ -d "$TEMP_DIR" ]; then
-        rm -rf "$TEMP_DIR"
-    fi
-    
-    log "Cleanup complete"
-}
-
 # Set up passwordless sudo for package management
 setup_sudo_privileges() {
     log "Setting up passwordless sudo for package management..."
@@ -504,11 +450,8 @@ main() {
     VERSION=$(echo $OS_INFO | cut -d':' -f2)
     ARCH=$(detect_arch)
     
-    # Download binaries
-    BINARIES_DIR=$(download_binaries $OS $VERSION $ARCH)
-    
-    # Install binaries
-    install_binaries "$BINARIES_DIR"
+    # Download and install binaries directly
+    download_and_install_binaries $OS $VERSION $ARCH
     
     # Create system user
     create_system_user
@@ -527,9 +470,6 @@ main() {
     
     # Start and enable the service
     start_service
-    
-    # Cleanup
-    cleanup "$BINARIES_DIR"
     
     print_colored "Installation complete!" "$GREEN"
     echo ""
