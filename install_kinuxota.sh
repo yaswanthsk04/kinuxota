@@ -171,7 +171,8 @@ download_binaries() {
     
     # Download kinuxota_client
     log "Downloading kinuxota_client..."
-    if ! curl -L -o "$TEMP_DIR/bin/kinuxota_client" "https://github.com/yaswanthsk04/kinuxota/raw/main/release/1.0.0/ubuntu/amd64/kinuxota_client"; then
+    curl -L -o "$TEMP_DIR/bin/kinuxota_client" "https://github.com/yaswanthsk04/kinuxota/raw/main/release/1.0.0/ubuntu/amd64/kinuxota_client"
+    if [ ! -f "$TEMP_DIR/bin/kinuxota_client" ]; then
         error "Failed to download kinuxota_client"
     fi
     
@@ -180,7 +181,8 @@ download_binaries() {
     
     # Also download kinuxctl
     log "Downloading kinuxctl..."
-    if curl -L -o "$TEMP_DIR/bin/kinuxctl" "https://github.com/yaswanthsk04/kinuxota/raw/main/release/1.0.0/ubuntu/amd64/kinuxctl"; then
+    curl -L -o "$TEMP_DIR/bin/kinuxctl" "https://github.com/yaswanthsk04/kinuxota/raw/main/release/1.0.0/ubuntu/amd64/kinuxctl"
+    if [ -f "$TEMP_DIR/bin/kinuxctl" ]; then
         log "Successfully downloaded kinuxctl"
         chmod +x "$TEMP_DIR/bin/kinuxctl"
     else
@@ -189,7 +191,8 @@ download_binaries() {
     
     # Also download update-executor.sh
     log "Downloading update-executor.sh..."
-    if curl -L -o "$TEMP_DIR/bin/update-executor.sh" "https://github.com/yaswanthsk04/kinuxota/raw/main/kinuxota/update-executor.sh"; then
+    curl -L -o "$TEMP_DIR/bin/update-executor.sh" "https://github.com/yaswanthsk04/kinuxota/raw/main/kinuxota/update-executor.sh"
+    if [ -f "$TEMP_DIR/bin/update-executor.sh" ]; then
         log "Successfully downloaded update-executor.sh"
         chmod +x "$TEMP_DIR/bin/update-executor.sh"
     else
