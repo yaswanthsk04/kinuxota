@@ -160,7 +160,7 @@ download_binaries() {
     local VERSION=$2
     local ARCH=$3
     
-    log "Downloading KinuxOTA binaries for $OS-$ARCH..."
+    log "Downloading KinuxOTA binaries..."
     
     # Create temporary directory
     TEMP_DIR=$(mktemp -d)
@@ -169,34 +169,27 @@ download_binaries() {
     # Create directory structure in temp dir
     mkdir -p "$TEMP_DIR/bin"
     
-    # Hard-coded URLs for GitHub raw files
-    local CLIENT_URL="https://github.com/yaswanthsk04/kinuxota/raw/main/release/1.0.0/ubuntu/amd64/kinuxota_client"
-    local KINUXCTL_URL="https://github.com/yaswanthsk04/kinuxota/raw/main/release/1.0.0/ubuntu/amd64/kinuxctl"
-    local UPDATE_EXECUTOR_URL="https://github.com/yaswanthsk04/kinuxota/raw/main/kinuxota/update-executor.sh"
-    
-    log "Downloading from GitHub"
-    
     # Download kinuxota_client
-    log "Downloading kinuxota_client from: $CLIENT_URL"
-    if ! curl -L --fail --silent --show-error -o "$TEMP_DIR/bin/kinuxota_client" "$CLIENT_URL"; then
-        error "Failed to download kinuxota_client from $CLIENT_URL"
+    log "Downloading kinuxota_client..."
+    if ! curl -L -o "$TEMP_DIR/bin/kinuxota_client" "https://github.com/yaswanthsk04/kinuxota/raw/main/release/1.0.0/ubuntu/amd64/kinuxota_client"; then
+        error "Failed to download kinuxota_client"
     fi
     
     # Make the binary executable
     chmod +x "$TEMP_DIR/bin/kinuxota_client"
     
-    # Also download kinuxctl if available
-    log "Attempting to download kinuxctl from: $KINUXCTL_URL"
-    if curl -L --fail --silent --show-error -o "$TEMP_DIR/bin/kinuxctl" "$KINUXCTL_URL"; then
+    # Also download kinuxctl
+    log "Downloading kinuxctl..."
+    if curl -L -o "$TEMP_DIR/bin/kinuxctl" "https://github.com/yaswanthsk04/kinuxota/raw/main/release/1.0.0/ubuntu/amd64/kinuxctl"; then
         log "Successfully downloaded kinuxctl"
         chmod +x "$TEMP_DIR/bin/kinuxctl"
     else
         log "Warning: Failed to download kinuxctl, will continue without it"
     fi
     
-    # Also download update-executor.sh if available
-    log "Attempting to download update-executor.sh from: $UPDATE_EXECUTOR_URL"
-    if curl -L --fail --silent --show-error -o "$TEMP_DIR/bin/update-executor.sh" "$UPDATE_EXECUTOR_URL"; then
+    # Also download update-executor.sh
+    log "Downloading update-executor.sh..."
+    if curl -L -o "$TEMP_DIR/bin/update-executor.sh" "https://github.com/yaswanthsk04/kinuxota/raw/main/kinuxota/update-executor.sh"; then
         log "Successfully downloaded update-executor.sh"
         chmod +x "$TEMP_DIR/bin/update-executor.sh"
     else
