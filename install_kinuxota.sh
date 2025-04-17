@@ -278,6 +278,18 @@ create_service_file() {
     
     log "Creating systemd service file..."
     
+    # Determine user and group for the service
+    local SERVICE_USER="root"
+    local SERVICE_GROUP="root"
+    
+    if getent passwd kinuxota > /dev/null; then
+        SERVICE_USER="kinuxota"
+        SERVICE_GROUP="kinuxota"
+        log "Using kinuxota user for service"
+    else
+        log "Using root user for service"
+    fi
+    
     # Create service file
     cat > "$SERVICE_FILE" << EOF
 [Unit]
@@ -287,8 +299,8 @@ Wants=network-online.target
 
 [Service]
 Type=simple
-User=root
-Group=root
+User=${SERVICE_USER}
+Group=${SERVICE_GROUP}
 ExecStart=/usr/local/bin/kinuxota_client
 Restart=on-failure
 RestartSec=10
@@ -301,11 +313,6 @@ LogsDirectory=kinuxota
 LogsDirectoryMode=0755
 ConfigurationDirectory=kinuxota
 ConfigurationDirectoryMode=0755
-
-# If a dedicated user exists, use it instead of root
-ExecStartPre=/bin/sh -c 'if getent passwd kinuxota > /dev/null; then echo "User=kinuxota"; echo "Group=kinuxota"; fi > /run/kinuxota-user'
-ExecStartPre=/bin/sh -c 'if [ -f /run/kinuxota-user ]; then sed -i "s/^User=root/$(grep User /run/kinuxota-user)/" /etc/systemd/system/kinuxota.service; sed -i "s/^Group=root/$(grep Group /run/kinuxota-user)/" /etc/systemd/system/kinuxota.service; fi'
-ExecStartPost=/bin/rm -f /run/kinuxota-user
 
 # Security hardening
 ProtectSystem=full
@@ -320,7 +327,7 @@ EOF
     # Set permissions
     chmod 644 "$SERVICE_FILE"
     
-    log "Systemd service file created"
+    log "Systemd service file created with user: ${SERVICE_USER}, group: ${SERVICE_GROUP}"
 }
 
 # Enable the service (but don't start it)
@@ -472,14 +479,16 @@ main() {
     echo "   sudo kinuxctl configure"
     echo ""
     echo "2. Start the service:"
-    echo "   sudo systemctl start kinuxota.service"
+    echo "   sudo kinuxctl start"
     echo ""
     echo "3. Check the status:"
-    echo "   sudo systemctl status kinuxota.service"
+    echo "   sudo kinuxctl status"
     echo ""
     echo "Additional commands:"
-    echo "- View logs: sudo journalctl -u kinuxota.service"
-    echo "- Check client status: sudo kinuxctl status"
+    echo "- Stop the service:    sudo kinuxctl stop"
+    echo "- Restart the service: sudo kinuxctl restart"
+    echo "- View logs:           sudo kinuxctl logs -f"
+    echo "- Check health:        sudo kinuxctl health"
     echo ""
 }
 
