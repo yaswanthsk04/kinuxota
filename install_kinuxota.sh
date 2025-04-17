@@ -184,46 +184,53 @@ download_binaries() {
     # Create directory structure in temp dir
     mkdir -p "$TEMP_DIR/bin"
     
-    # Construct download URLs based on directory structure
-    # The folder structure is: release/1.0.0/ubuntu/amd64/
-    KINUXOTA_CLIENT_URL="${BASE_URL}/${OS}/${ARCH}/kinuxota_client"
-    KINUXCTL_URL="${BASE_URL}/${OS}/${ARCH}/kinuxctl"
-    UPDATE_EXECUTOR_URL="${BASE_URL}/${OS}/${ARCH}/update-executor.sh"
-    
-    log "Downloading kinuxota_client from: $KINUXOTA_CLIENT_URL"
-    
     # Check if we're using local files
     if [[ "$BASE_URL" == ./* ]]; then
-        # Copy from local directory
-        if [ -f "$KINUXOTA_CLIENT_URL" ]; then
-            cp "$KINUXOTA_CLIENT_URL" "$TEMP_DIR/bin/kinuxota_client"
+        # Local file paths
+        local CLIENT_PATH="${BASE_URL}/${OS}/${ARCH}/kinuxota_client"
+        local KINUXCTL_PATH="${BASE_URL}/${OS}/${ARCH}/kinuxctl"
+        local UPDATE_EXECUTOR_PATH="${BASE_URL}/${OS}/${ARCH}/update-executor.sh"
+        
+        log "Using local files from: ${BASE_URL}/${OS}/${ARCH}/"
+        
+        # Copy kinuxota_client if available
+        if [ -f "$CLIENT_PATH" ]; then
+            cp "$CLIENT_PATH" "$TEMP_DIR/bin/kinuxota_client"
             chmod +x "$TEMP_DIR/bin/kinuxota_client"
             log "Successfully copied kinuxota_client from local directory"
         else
-            error "Failed to find kinuxota_client at $KINUXOTA_CLIENT_URL"
+            error "Failed to find kinuxota_client at $CLIENT_PATH"
         fi
         
         # Copy kinuxctl if available
-        if [ -f "$KINUXCTL_URL" ]; then
-            cp "$KINUXCTL_URL" "$TEMP_DIR/bin/kinuxctl"
+        if [ -f "$KINUXCTL_PATH" ]; then
+            cp "$KINUXCTL_PATH" "$TEMP_DIR/bin/kinuxctl"
             chmod +x "$TEMP_DIR/bin/kinuxctl"
             log "Successfully copied kinuxctl from local directory"
         else
-            log "Warning: kinuxctl not found at $KINUXCTL_URL, will continue without it"
+            log "Warning: kinuxctl not found at $KINUXCTL_PATH, will continue without it"
         fi
         
         # Copy update-executor.sh if available
-        if [ -f "$UPDATE_EXECUTOR_URL" ]; then
-            cp "$UPDATE_EXECUTOR_URL" "$TEMP_DIR/bin/update-executor.sh"
+        if [ -f "$UPDATE_EXECUTOR_PATH" ]; then
+            cp "$UPDATE_EXECUTOR_PATH" "$TEMP_DIR/bin/update-executor.sh"
             chmod +x "$TEMP_DIR/bin/update-executor.sh"
             log "Successfully copied update-executor.sh from local directory"
         else
-            log "Warning: update-executor.sh not found at $UPDATE_EXECUTOR_URL, will try to use local copy during installation"
+            log "Warning: update-executor.sh not found at $UPDATE_EXECUTOR_PATH, will try to use local copy during installation"
         fi
     else
-        # Download from URL
-        if ! curl -L -o "$TEMP_DIR/bin/kinuxota_client" "$KINUXOTA_CLIENT_URL"; then
-            error "Failed to download kinuxota_client from $KINUXOTA_CLIENT_URL"
+        # Remote URLs - use explicit URLs to avoid date insertion issues
+        local CLIENT_URL="${BASE_URL}/${OS}/${ARCH}/kinuxota_client"
+        local KINUXCTL_URL="${BASE_URL}/${OS}/${ARCH}/kinuxctl"
+        local UPDATE_EXECUTOR_URL="${BASE_URL}/${OS}/${ARCH}/update-executor.sh"
+        
+        log "Downloading from: ${BASE_URL}/${OS}/${ARCH}/"
+        
+        # Download kinuxota_client
+        log "Downloading kinuxota_client from: $CLIENT_URL"
+        if ! curl -L --fail --silent --show-error -o "$TEMP_DIR/bin/kinuxota_client" "$CLIENT_URL"; then
+            error "Failed to download kinuxota_client from $CLIENT_URL"
         fi
         
         # Make the binary executable
@@ -231,8 +238,7 @@ download_binaries() {
         
         # Also download kinuxctl if available
         log "Attempting to download kinuxctl from: $KINUXCTL_URL"
-        
-        if curl -L -o "$TEMP_DIR/bin/kinuxctl" "$KINUXCTL_URL"; then
+        if curl -L --fail --silent --show-error -o "$TEMP_DIR/bin/kinuxctl" "$KINUXCTL_URL"; then
             log "Successfully downloaded kinuxctl"
             chmod +x "$TEMP_DIR/bin/kinuxctl"
         else
@@ -241,8 +247,7 @@ download_binaries() {
         
         # Also download update-executor.sh if available
         log "Attempting to download update-executor.sh from: $UPDATE_EXECUTOR_URL"
-        
-        if curl -L -o "$TEMP_DIR/bin/update-executor.sh" "$UPDATE_EXECUTOR_URL"; then
+        if curl -L --fail --silent --show-error -o "$TEMP_DIR/bin/update-executor.sh" "$UPDATE_EXECUTOR_URL"; then
             log "Successfully downloaded update-executor.sh"
             chmod +x "$TEMP_DIR/bin/update-executor.sh"
         else
