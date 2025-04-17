@@ -1,4 +1,4 @@
-rm#!/bin/bash
+#!/bin/bash
 # KinuxOTA Client Installation Script
 # This script installs the KinuxOTA client on the system by:
 # 1. Detecting the OS and architecture
@@ -162,7 +162,7 @@ if [ -d "./kinuxota/release" ]; then
 else
     # Use GitHub URL as fallback
     log "Using GitHub for downloads"
-    BASE_URL="https://github.com/yaswanthsk04/kinuxota/download/release/1.0.0"
+    BASE_URL="https://github.com/yaswanthsk04/kinuxota/raw/main/kinuxota/release/1.0.0"
 fi
 
 # Download binaries
@@ -185,6 +185,7 @@ download_binaries() {
     mkdir -p "$TEMP_DIR/bin"
     
     # Construct download URLs based on directory structure
+    # The folder structure is: release/1.0.0/ubuntu/amd64/
     KINUXOTA_CLIENT_URL="${BASE_URL}/${OS}/${ARCH}/kinuxota_client"
     KINUXCTL_URL="${BASE_URL}/${OS}/${ARCH}/kinuxctl"
     UPDATE_EXECUTOR_URL="${BASE_URL}/${OS}/${ARCH}/update-executor.sh"
