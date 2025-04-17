@@ -258,8 +258,8 @@ create_config_file() {
     # Create default config
     cat > "$CONFIG_FILE" << EOF
 {
-    "serverUrl": "https://api.kinuxota.com",
-    "mqttBrokerUrl": "mqtt://mqtt.kinuxota.com:1883",
+    "serverUrl": "http://172.25.176.1", 
+    "mqttBrokerUrl": "tcp://http://172.25.176.1:1883",
     "useMqtt": true,
     "checkForUpdates": true,
     "commandTimeout": 300
@@ -323,9 +323,9 @@ EOF
     log "Systemd service file created"
 }
 
-# Start and enable the service
-start_service() {
-    log "Starting and enabling KinuxOTA service..."
+# Enable the service (but don't start it)
+enable_service() {
+    log "Enabling KinuxOTA service..."
     
     # Reload systemd to recognize the new service
     systemctl daemon-reload
@@ -333,15 +333,7 @@ start_service() {
     # Enable the service to start on boot
     systemctl enable kinuxota.service
     
-    # Start the service
-    systemctl start kinuxota.service
-    
-    # Check if service started successfully
-    if systemctl is-active --quiet kinuxota.service; then
-        log "Service started successfully"
-    else
-        error "Failed to start service"
-    fi
+    log "Service enabled successfully"
 }
 
 # Set up passwordless sudo for package management
@@ -468,15 +460,26 @@ main() {
     # Set up sudo privileges for package management
     setup_sudo_privileges
     
-    # Start and enable the service
-    start_service
+    # Enable the service (but don't start it)
+    enable_service
     
     print_colored "Installation complete!" "$GREEN"
     echo ""
-    print_colored "The KinuxOTA client has been installed and started as a service." "$YELLOW"
-    echo "You can check the status with: sudo systemctl status kinuxota.service"
-    echo "You can view logs with: sudo journalctl -u kinuxota.service"
-    echo "You can use the kinuxctl utility to manage the client: kinuxctl status"
+    print_colored "The KinuxOTA client has been installed but not started." "$YELLOW"
+    echo ""
+    print_colored "NEXT STEPS:" "$GREEN"
+    echo "1. Configure the client with your API key:"
+    echo "   sudo kinuxctl configure"
+    echo ""
+    echo "2. Start the service:"
+    echo "   sudo systemctl start kinuxota.service"
+    echo ""
+    echo "3. Check the status:"
+    echo "   sudo systemctl status kinuxota.service"
+    echo ""
+    echo "Additional commands:"
+    echo "- View logs: sudo journalctl -u kinuxota.service"
+    echo "- Check client status: sudo kinuxctl status"
     echo ""
 }
 
