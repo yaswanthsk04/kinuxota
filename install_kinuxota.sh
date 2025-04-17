@@ -1,4 +1,4 @@
-#!/bin/bash
+rm#!/bin/bash
 # KinuxOTA Client Installation Script
 # This script installs the KinuxOTA client on the system by:
 # 1. Detecting the OS and architecture
@@ -50,10 +50,40 @@ detect_os() {
         
         # Currently only supporting Ubuntu
         if [ "$OS" != "ubuntu" ]; then
-            error "Unsupported OS: $OS. Currently only Ubuntu is supported."
+            log "Auto-detected OS: $OS, but only Ubuntu is currently supported."
+            
+            # Ask user if they want to continue anyway
+            read -p "Are you using Ubuntu? (y/n): " UBUNTU_CONFIRM
+            if [[ "$UBUNTU_CONFIRM" =~ ^[Yy]$ ]]; then
+                log "User confirmed Ubuntu. Continuing installation..."
+                OS="ubuntu"
+                # Try to get version from lsb_release if available
+                if command -v lsb_release &> /dev/null; then
+                    VERSION=$(lsb_release -rs)
+                else
+                    VERSION="20.04" # Default to a reasonable version
+                fi
+            else
+                error "Installation aborted. Only Ubuntu is currently supported."
+            fi
         fi
     else
-        error "Could not detect operating system. /etc/os-release not found."
+        log "Could not auto-detect operating system. /etc/os-release not found."
+        
+        # Ask user if they want to continue with Ubuntu
+        read -p "Are you using Ubuntu? (y/n): " UBUNTU_CONFIRM
+        if [[ "$UBUNTU_CONFIRM" =~ ^[Yy]$ ]]; then
+            log "User confirmed Ubuntu. Continuing installation..."
+            OS="ubuntu"
+            # Try to get version from lsb_release if available
+            if command -v lsb_release &> /dev/null; then
+                VERSION=$(lsb_release -rs)
+            else
+                VERSION="20.04" # Default to a reasonable version
+            fi
+        else
+            error "Installation aborted. Only Ubuntu is currently supported."
+        fi
     fi
     
     # Return OS and version
@@ -80,23 +110,66 @@ detect_arch() {
             ARCH="armhf"
             ;;
         *)
-            error "Unsupported architecture: $ARCH"
+            log "Auto-detection failed or unsupported architecture: $ARCH"
+            
+            # Ask user to confirm architecture
+            echo "Please select your architecture:"
+            echo "1) amd64 (64-bit x86)"
+            echo "2) arm64 (64-bit ARM)"
+            echo "3) armhf (32-bit ARM)"
+            read -p "Enter choice [1-3]: " ARCH_CHOICE
+            
+            case $ARCH_CHOICE in
+                1)
+                    ARCH="amd64"
+                    ;;
+                2)
+                    ARCH="arm64"
+                    ;;
+                3)
+                    ARCH="armhf"
+                    ;;
+                *)
+                    error "Invalid choice. Installation aborted."
+                    ;;
+            esac
             ;;
     esac
     
-    log "Mapped architecture: $ARCH"
+    # Currently only supporting amd64
+    if [ "$ARCH" != "amd64" ]; then
+        log "Detected architecture: $ARCH, but only amd64 is currently supported."
+        
+        # Ask user if they want to continue with amd64
+        read -p "Are you using amd64 architecture? (y/n): " AMD64_CONFIRM
+        if [[ "$AMD64_CONFIRM" =~ ^[Yy]$ ]]; then
+            log "User confirmed amd64. Continuing installation..."
+            ARCH="amd64"
+        else
+            error "Installation aborted. Only amd64 is currently supported."
+        fi
+    fi
+    
+    log "Using architecture: $ARCH"
     echo $ARCH
 }
 
-# Define GitHub base URL (same as in common_types.h)
-GITHUB_BASE_URL="https://github.com/yaswanthsk04/kinuxota/download/release/"
+# Define base URL for downloads
+# Check if we're running from the repository
+if [ -d "./kinuxota/release" ]; then
+    log "Running from repository, using local files"
+    BASE_URL="./kinuxota/release/1.0.0"
+else
+    # Use GitHub URL as fallback
+    log "Using GitHub for downloads"
+    BASE_URL="https://github.com/yaswanthsk04/kinuxota/download/release/1.0.0"
+fi
 
-# Download binaries from GitHub
+# Download binaries
 download_binaries() {
     local OS=$1
     local VERSION=$2
     local ARCH=$3
-    local RELEASE_VERSION="latest"  # Change this to a specific version if needed
     
     log "Downloading KinuxOTA binaries for $OS-$ARCH..."
     
@@ -108,47 +181,72 @@ download_binaries() {
     # Convert OS to lowercase
     OS=$(echo "$OS" | tr '[:upper:]' '[:lower:]')
     
-    # Map architecture to standardized names (already done in detect_arch)
-    
-    # Construct binary name (similar to how it's done in the update process)
-    BINARY_NAME="kinuxota_v${RELEASE_VERSION}"
-    
-    # Construct download URL using the same format as in the update process
-    DOWNLOAD_URL="${GITHUB_BASE_URL}${OS}/${ARCH}/${BINARY_NAME}"
-    
-    log "Downloading from: $DOWNLOAD_URL"
-    
     # Create directory structure in temp dir
     mkdir -p "$TEMP_DIR/bin"
     
-    # Download the binary
-    if ! curl -L -o "$TEMP_DIR/bin/kinuxota_client" "$DOWNLOAD_URL"; then
-        error "Failed to download binary from $DOWNLOAD_URL"
-    fi
+    # Construct download URLs based on directory structure
+    KINUXOTA_CLIENT_URL="${BASE_URL}/${OS}/${ARCH}/kinuxota_client"
+    KINUXCTL_URL="${BASE_URL}/${OS}/${ARCH}/kinuxctl"
+    UPDATE_EXECUTOR_URL="${BASE_URL}/${OS}/${ARCH}/update-executor.sh"
     
-    # Make the binary executable
-    chmod +x "$TEMP_DIR/bin/kinuxota_client"
+    log "Downloading kinuxota_client from: $KINUXOTA_CLIENT_URL"
     
-    # Also download kinuxctl if available
-    KINUXCTL_URL="${GITHUB_BASE_URL}${OS}/${ARCH}/kinuxctl"
-    log "Attempting to download kinuxctl from: $KINUXCTL_URL"
-    
-    if curl -L -o "$TEMP_DIR/bin/kinuxctl" "$KINUXCTL_URL"; then
-        log "Successfully downloaded kinuxctl"
-        chmod +x "$TEMP_DIR/bin/kinuxctl"
+    # Check if we're using local files
+    if [[ "$BASE_URL" == ./* ]]; then
+        # Copy from local directory
+        if [ -f "$KINUXOTA_CLIENT_URL" ]; then
+            cp "$KINUXOTA_CLIENT_URL" "$TEMP_DIR/bin/kinuxota_client"
+            chmod +x "$TEMP_DIR/bin/kinuxota_client"
+            log "Successfully copied kinuxota_client from local directory"
+        else
+            error "Failed to find kinuxota_client at $KINUXOTA_CLIENT_URL"
+        fi
+        
+        # Copy kinuxctl if available
+        if [ -f "$KINUXCTL_URL" ]; then
+            cp "$KINUXCTL_URL" "$TEMP_DIR/bin/kinuxctl"
+            chmod +x "$TEMP_DIR/bin/kinuxctl"
+            log "Successfully copied kinuxctl from local directory"
+        else
+            log "Warning: kinuxctl not found at $KINUXCTL_URL, will continue without it"
+        fi
+        
+        # Copy update-executor.sh if available
+        if [ -f "$UPDATE_EXECUTOR_URL" ]; then
+            cp "$UPDATE_EXECUTOR_URL" "$TEMP_DIR/bin/update-executor.sh"
+            chmod +x "$TEMP_DIR/bin/update-executor.sh"
+            log "Successfully copied update-executor.sh from local directory"
+        else
+            log "Warning: update-executor.sh not found at $UPDATE_EXECUTOR_URL, will try to use local copy during installation"
+        fi
     else
-        log "Warning: Failed to download kinuxctl, will continue without it"
-    fi
-    
-    # Also download update-executor.sh if available
-    UPDATE_EXECUTOR_URL="${GITHUB_BASE_URL}${OS}/${ARCH}/update-executor.sh"
-    log "Attempting to download update-executor.sh from: $UPDATE_EXECUTOR_URL"
-    
-    if curl -L -o "$TEMP_DIR/bin/update-executor.sh" "$UPDATE_EXECUTOR_URL"; then
-        log "Successfully downloaded update-executor.sh"
-        chmod +x "$TEMP_DIR/bin/update-executor.sh"
-    else
-        log "Warning: Failed to download update-executor.sh, will try to use local copy during installation"
+        # Download from URL
+        if ! curl -L -o "$TEMP_DIR/bin/kinuxota_client" "$KINUXOTA_CLIENT_URL"; then
+            error "Failed to download kinuxota_client from $KINUXOTA_CLIENT_URL"
+        fi
+        
+        # Make the binary executable
+        chmod +x "$TEMP_DIR/bin/kinuxota_client"
+        
+        # Also download kinuxctl if available
+        log "Attempting to download kinuxctl from: $KINUXCTL_URL"
+        
+        if curl -L -o "$TEMP_DIR/bin/kinuxctl" "$KINUXCTL_URL"; then
+            log "Successfully downloaded kinuxctl"
+            chmod +x "$TEMP_DIR/bin/kinuxctl"
+        else
+            log "Warning: Failed to download kinuxctl, will continue without it"
+        fi
+        
+        # Also download update-executor.sh if available
+        log "Attempting to download update-executor.sh from: $UPDATE_EXECUTOR_URL"
+        
+        if curl -L -o "$TEMP_DIR/bin/update-executor.sh" "$UPDATE_EXECUTOR_URL"; then
+            log "Successfully downloaded update-executor.sh"
+            chmod +x "$TEMP_DIR/bin/update-executor.sh"
+        else
+            log "Warning: Failed to download update-executor.sh, will try to use local copy during installation"
+        fi
     fi
     
     # Return the path to the extracted binaries
